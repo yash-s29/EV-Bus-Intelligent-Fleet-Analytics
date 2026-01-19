@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fleet Logs | EV Fleet AI</title>
+  <link rel="stylesheet" href="../css/style.css" />
+
+  <script src="../js/sidebar.js" defer></script>
+  <script src="../js/logs.js" defer></script>
+
+  <style>
+   
+    .status-green { background-color: rgba(56, 161, 105, 0.2); } /* Good */
+    .status-yellow { background-color: rgba(245, 158, 11, 0.2); } /* Attention / Proper */
+    .status-red { background-color: rgba(220, 38, 38, 0.2); } /* Critical */
+
+ 
+    .issues-cell { cursor: pointer; text-decoration: underline; }
+
+    #logTable {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #logTable th, #logTable td {
+      padding: 0.6rem 0.8rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      text-align: left;
+    }
+    #logTable th {
+      background-color: rgba(255,255,255,0.05);
+    }
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    .state-box {
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 0.5rem;
+      display: none;
+      font-weight: 500;
+    }
+    .state-box.loading { background-color: rgba(255,255,255,0.05); color: #fff; }
+    .state-box.error { background-color: rgba(220, 38, 38,0.2); color: #dc2626; }
+
+    #closeSoh {
+      display: none;
+      margin-top: 0.5rem;
+      cursor: pointer;
+      font-weight: 500;
+      color: #dc2626;
+      background: transparent;
+      border: none;
+    }
+    #closeSoh:hover { text-decoration: underline; }
+
+    .selected-bus { outline: 2px solid #3b82f6; }
+  </style>
+</head>
+
+<body class="app logs">
+
+  <!-- ===================== APP SHELL ===================== -->
+  <div class="app-shell">
+
+    <!-- ===================== SIDEBAR ===================== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2 class="logo">EV Fleet AI</h2>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="index.html" class="nav-link">Dashboard</a>
+        <a href="logs.html" class="nav-link active">Fleet Logs</a>
+        <a href="route.html" class="nav-link">Route Monitor</a>
+        <a href="prediction.html" class="nav-link">Trip Prediction</a>
+      </nav>
+    </aside>
+
+    <!-- ===================== MAIN AREA ===================== -->
+    <div class="app-main">
+
+      <!-- ===================== TOP BAR ===================== -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Fleet Logs</h1>
+          <p class="page-subtitle">Monitor SOH & maintenance status of all EV buses</p>
+        </div>
+      </header>
+
+      <!-- ===================== PAGE CONTENT ===================== -->
+      <main class="content">
+
+        <!-- ===================== FILTERS ===================== -->
+        <section class="card">
+          <header class="card-header">
+            <h3>Log Filters</h3>
+          </header>
+
+          <div class="filter-grid">
+            <input type="text" id="busId" placeholder="Bus ID (e.g. EV001)" />
+            <input type="number" id="limit" min="1" max="1000" placeholder="Limit (default 100)" />
+            <button id="filterBtn" class="btn btn-primary">Apply Filter</button>
+            <button id="exportBtn" class="btn btn-accent">Export CSV</button>
+          </div>
+        </section>
+
+        <!-- ===================== LOG TABLE ===================== -->
+        <section class="card table-card">
+          <header class="card-header">
+            <h3>Bus Status Records</h3>
+            <button id="closeSoh">Close Predicted SOH Column</button>
+          </header>
+
+          <!-- State Box -->
+          <div id="logState" class="state-box loading">
+            Enter a Bus ID to load logs
+          </div>
+
+          <!-- Table Wrapper -->
+          <div class="table-wrapper">
+            <table id="logTable">
+              <thead>
+                <tr>
+                  <th>Bus ID</th>
+                  <th>Predicted SOH (%)</th>
+                  <th>Maintenance Due</th>
+                  <th># Issues</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+</body>
+</html>

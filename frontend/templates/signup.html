@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signup | EV Fleet AI</title>
+
+  <!-- Global Styles -->
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+
+<body class="auth-page">
+
+  <!-- ===================== SIGNUP CARD ===================== -->
+  <div class="auth-card signup-card fade-in">
+    <h2>Create Your Account</h2>
+
+    <form id="signupForm" class="form-grid">
+
+      <input
+        type="text"
+        id="name"
+        placeholder="Full Name"
+        required
+      />
+
+      <!-- Role / Organization -->
+      <select id="organization" required>
+        <option value="" disabled selected>Select Role</option>
+        <option value="technician">Technician</option>
+        <option value="fleet_manager">Fleet Manager</option>
+      </select>
+
+      <input
+        type="email"
+        id="email"
+        placeholder="Email"
+        required
+      />
+
+      <input
+        type="password"
+        id="password"
+        placeholder="Password"
+        required
+      />
+
+      <input
+        type="password"
+        id="confirmPassword"
+        placeholder="Confirm Password"
+        required
+      />
+
+      <button type="submit" class="primary-btn">
+        Sign Up
+      </button>
+
+    </form>
+
+    <!-- Message Box -->
+    <div id="signupMessage" class="state-box hidden"></div>
+
+    <p class="signup-text">
+      Already have an account?
+      <a href="login.html">Login</a>
+    </p>
+  </div>
+
+  <!-- ===================== SCRIPT ===================== -->
+  <!-- IMPORTANT: correct relative path -->
+  <script src="../js/signup.js"></script>
+</body>
+</html>

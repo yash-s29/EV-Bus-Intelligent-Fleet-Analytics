@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Route Monitor | EV Fleet AI</title>
+
+  <!-- Core Styles -->
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    /* ================= MAP CONTAINER ================= */
+    .map-wrapper { position: relative; width: 100%; height: 620px; border-radius: 18px; overflow: hidden; background: #f8fafc; border: 1px solid #e2e8f0; box-shadow: 0 18px 45px rgba(0,0,0,0.18); }
+    #map { width: 100%; height: 100%; }
+
+    /* ================= MAP LEGEND ================= */
+    .map-legend { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.96); backdrop-filter: blur(6px); border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; font-size: 0.75rem; color: #1f2937; z-index: 500; box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
+    .legend-title { font-weight: 800; font-size: 0.7rem; letter-spacing: 0.08em; color: #2563eb; margin-bottom: 10px; text-transform: uppercase; }
+    .map-legend div { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .map-legend div:last-child { margin-bottom: 0; }
+    .lg { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+    .lg.bus { background: #16a34a; }
+    .lg.route { background: #2563eb; border-radius: 4px; height: 4px; }
+    .lg.traffic { background: linear-gradient(90deg,#16a34a,#f59e0b,#dc2626); border-radius: 4px; height: 4px; }
+    .lg.charger { background: #f9ed02; }
+
+    /* ================= BUS MARKERS ================= */
+    .bus-icon { display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+    .bus-dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 6px rgba(0,0,0,0.4); }
+    .bus-label { margin-top: 4px; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 6px; background: white; color: #111827; border: 1px solid #e5e7eb; white-space: nowrap; }
+
+    /* ================= ARROWS ================= */
+    .arrow-icon { font-weight: 900; color: inherit; text-shadow: 0 0 2px white; line-height: 1; }
+
+    /* ================= SEARCH ================= */
+    .search-input { width: 100%; padding: 14px 18px; background: white; border-radius: 14px; border: 1px solid #e5e7eb; color: #111827; font-size: 0.95rem; margin-bottom: 1.2rem; }
+
+    /* ================= SYNC BAR ================= */
+    .sync-progress-container { height: 4px; width: 100%; background: #e5e7eb; border-radius: 2px; overflow: hidden; margin-bottom: 1.8rem; }
+    #sync-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg,#2563eb,#60a5fa); transition: width 1s linear; }
+
+    /* ================= TABLE ================= */
+    .table-wrapper { background: white; border-radius: 14px; border: 1px solid #e5e7eb; overflow-x: auto; }
+    #routeTable { width: 100%; border-collapse: collapse; }
+    #routeTable th { font-size: 0.7rem; letter-spacing: 0.08em; padding: 1.2rem; color: #2563eb; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; }
+    #routeTable td { padding: 1.1rem; font-weight: 600; color: #111827; border-bottom: 1px solid #f1f5f9; }
+    #routeTable tr:hover { background: #f1f5f9; cursor: pointer; }
+
+    /* ================= STATE BOX ================= */
+    .state-box { background: white; border: 1px solid #e5e7eb; padding: 16px; border-radius: 12px; font-weight: 600; color: #475569; margin-bottom: 1.6rem; }
+  </style>
+</head>
+
+<body class="app route">
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2 class="logo">EV Fleet AI</h2>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-link">Dashboard</a>
+      <a href="logs.html" class="nav-link">Fleet Logs</a>
+      <a href="route.html" class="nav-link active">Route Monitor</a>
+      <a href="prediction.html" class="nav-link">Trip Prediction</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="app-main">
+    <header class="topbar">
+      <h1 class="page-title">Route Monitor</h1>
+      <p class="page-subtitle">Pune Hub — Live Fleet Navigation & Charging</p>
+    </header>
+
+    <main class="content">
+      <div class="sync-progress-container"><div id="sync-progress-bar"></div></div>
+      <div id="routeState" class="state-box">Connecting to live vehicle telemetry…</div>
+      <input id="mapSearch" class="search-input" placeholder="Search Bus ID or Charging Station…" />
+
+      <!-- TABLE -->
+      <section class="card">
+        <header class="card-header">
+          <h3>Live Fleet Telemetry</h3>
+          <span id="sync-timer" style="font-family:monospace;font-weight:800;color:#2563eb">10s</span>
+        </header>
+        <div class="table-wrapper">
+          <table id="routeTable">
+            <thead>
+              <tr>
+                <th>Bus ID</th>
+                <th>Route</th>
+                <th>SoC</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MAP -->
+      <section class="card" style="margin-top:2.4rem;">
+        <header class="card-header"><h3>Geospatial Fleet View</h3></header>
+        <div class="map-wrapper">
+          <div id="map"></div>
+          <div class="map-legend">
+            <div class="legend-title">Legend</div>
+            <div><span class="lg bus"></span> Active Bus</div>
+            <div><span class="lg route"></span> Optimized Route</div>
+            <div><span class="lg charger"></span> Charging Station</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// =================== ROUTE.JS INTEGRATED ===================
+const routeTableBody = document.querySelector("#routeTable tbody");
+const routeStateEl = document.getElementById("routeState");
+const syncTimerEl = document.getElementById("sync-timer");
+const syncProgressEl = document.getElementById("sync-progress-bar");
+const mapSearchEl = document.getElementById("mapSearch");
+
+let selectedBusId = localStorage.getItem("selectedBusId") || "";
+let isFetching = false;
+let countdown = 10;
+const REFRESH_INTERVAL = 10;
+
+let map;
+const movementLayer = L.layerGroup();
+const emergencyRouteLayer = L.layerGroup();
+const arrowLayer = L.layerGroup();
+const stationLayer = L.layerGroup();
+const markerLayer = L.layerGroup();
+
+const busMarkers = {};
+const animationState = {};
+const stationMarkers = {};
+
+function initMap() {
+  if (map) return;
+  map = L.map("map", { zoomControl: false, preferCanvas: true }).setView([18.5204, 73.8567], 13);
+
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    { attribution: '&copy; <a href="https://www.openstreetmap.org/">OSM</a>', maxZoom: 20 }
+  ).addTo(map);
+
+  movementLayer.addTo(map);
+  emergencyRouteLayer.addTo(map);
+  arrowLayer.addTo(map);
+  stationLayer.addTo(map);
+  markerLayer.addTo(map);
+
+  L.control.zoom({ position: "bottomright" }).addTo(map);
+}
+
+function statusColor(status) {
+  switch ((status || "").toUpperCase()) {
+    case "GOOD": return "#16a34a";
+    case "MEDIOCRE": return "#facc15";
+    case "CRITICAL": return "#dc2626";
+    default: return "#64748b";
+  }
+}
+
+function trafficColor() {
+  const r = Math.random();
+  if (r < 0.6) return "#16a34a";
+  if (r < 0.85) return "#facc15";
+  return "#dc2626";
+}
+
+function updateMap(buses) {
+  movementLayer.clearLayers();
+  emergencyRouteLayer.clearLayers();
+  arrowLayer.clearLayers();
+  stationLayer.clearLayers();
+
+  const activeIds = new Set();
+
+  buses.forEach(bus => {
+    if (bus.lat == null || bus.lng == null) return;
+    activeIds.add(bus.bus_id);
+
+    drawBus(bus);
+    drawMovementTrail(bus);
+
+    if (bus.status === "CRITICAL" && bus.charging_station) drawOptimizedEmergencyRoute(bus);
+    else if (bus.charging_station) drawStation(bus.charging_station);
+  });
+
+  Object.keys(busMarkers).forEach(id => {
+    if (!activeIds.has(id)) {
+      markerLayer.removeLayer(busMarkers[id]);
+      delete busMarkers[id];
+      delete animationState[id];
+    }
+  });
+}
+
+function drawBus(bus) {
+  const color = statusColor(bus.status);
+  const isFocused = bus.bus_id === selectedBusId || bus.status === "CRITICAL";
+  const icon = L.divIcon({ className: "bus-icon", html: `<div class="bus-dot" style="background:${color};opacity:${isFocused?1:0.35}"></div><div class="bus-label" style="opacity:${isFocused?1:0.4}">${bus.bus_id}</div>`, iconSize:[28,28], iconAnchor:[14,14]});
+
+  if(!busMarkers[bus.bus_id]) {
+    busMarkers[bus.bus_id] = L.marker([bus.lat,bus.lng],{icon}).addTo(markerLayer).bindPopup(busPopup(bus));
+    animationState[bus.bus_id] = { lat: bus.lat, lng: bus.lng };
+  } else {
+    animateBus(bus.bus_id, [bus.lat,bus.lng]);
+    busMarkers[bus.bus_id].setIcon(icon).setPopupContent(busPopup(bus));
+  }
+  if(isFocused) map.panTo([bus.lat,bus.lng],{animate:true});
+}
+
+function drawMovementTrail(bus) {
+  if(!bus.prev_lat || !bus.prev_lng) return;
+  L.polyline([[bus.prev_lat,bus.prev_lng],[bus.lat,bus.lng]],{color:"#94a3b8",weight:2,opacity:0.25}).addTo(movementLayer);
+}
+
+function drawOptimizedEmergencyRoute(bus) {
+  const s = bus.charging_station;
+  if(!s) return;
+  const route = [[bus.lat,bus.lng],[s.lat,s.lng]];
+  const traffic = trafficColor();
+  const chargerColor = s.available ? "#22c55e" : "#facc15";
+  const marker = L.circleMarker([s.lat,s.lng],{radius:8,color:chargerColor,fillOpacity:1}).bindPopup(`⚡ <b>${s.name}</b><br>Status: ${s.available?"Available":"Busy"}`).addTo(stationLayer);
+  stationMarkers[s.name]=marker;
+
+  L.polyline(route,{color:"#e5e7eb",weight:10,opacity:0.9}).addTo(emergencyRouteLayer);
+  L.polyline(route,{color:traffic,weight:5,opacity:1}).addTo(emergencyRouteLayer);
+  drawArrow(route);
+}
+
+function drawArrow(points){ const mid = points[Math.floor(points.length/2)]; L.marker(mid,{icon:L.divIcon({className:"route-arrow",html:"➤",iconSize:[20,20]})}).addTo(arrowLayer); }
+function drawStation(station){ const color = station.available?"#22c55e":"#facc15"; if(stationMarkers[station.name]) return; const marker=L.circleMarker([station.lat,station.lng],{radius:6,color,fillOpacity:1}).bindPopup(`⚡ <b>${station.name}</b><br>Status: ${station.available?"Available":"Busy"}`).addTo(stationLayer); stationMarkers[station.name]=marker; }
+function animateBus(id,target){ const marker=busMarkers[id]; const state=animationState[id]; if(!marker||!state) return; const steps=40; let i=0; const dLat=(target[0]-state.lat)/steps; const dLng=(target[1]-state.lng)/steps; function step(){ if(i>=steps) return; state.lat+=dLat; state.lng+=dLng; marker.setLatLng([state.lat,state.lng]); i++; requestAnimationFrame(step);} step(); }
+function busPopup(bus){ return `<div style="font-size:0.85rem;line-height:1.5"><b>${bus.bus_id}</b><br/>Route: ${bus.route_id}<br/>SoC: ${bus.soc.toFixed(1)}%<br/>Status: <span style="color:${statusColor(bus.status)};font-weight:800">${bus.status}</span></div>`; }
+
+async function fetchRouteStatus() {
+  if(isFetching) return;
+  isFetching=true;
+  try{
+    const res=await fetch("http://127.0.0.1:5000/api/route");
+    const data=await res.json();
+    if(!data.success) throw Error();
+    const q=mapSearchEl?.value.toLowerCase()||"";
+    const filtered=data.buses.filter(b=>b.bus_id.toLowerCase().includes(q)||(b.charging_station?.name||"").toLowerCase().includes(q));
+    renderTable(filtered);
+    updateMap(filtered);
+    routeStateEl.style.display="none";
+  }catch{
+    routeStateEl.textContent="Live telemetry unavailable"; routeStateEl.style.display="block";
+  } finally{ isFetching=false; countdown=REFRESH_INTERVAL; }
+}
+
+function renderTable(buses){ routeTableBody.innerHTML=""; buses.forEach(bus=>{ const tr=document.createElement("tr"); tr.innerHTML=`<td>${bus.bus_id}</td><td>${bus.route_id}</td><td>${bus.soc.toFixed(1)}%</td><td style="color:${statusColor(bus.status)}">${bus.status}</td>`; tr.onclick=()=>{ selectedBusId=bus.bus_id; localStorage.setItem("selectedBusId",selectedBusId); map.flyTo([bus.lat,bus.lng],15); busMarkers[bus.bus_id]?.openPopup(); }; routeTableBody.appendChild(tr); }); }
+
+mapSearchEl?.addEventListener("input",fetchRouteStatus);
+document.addEventListener("DOMContentLoaded",()=>{ initMap(); fetchRouteStatus(); setInterval(()=>{ countdown--; syncTimerEl.textContent=`${countdown}s`; syncProgressEl.style.width=`${(countdown/REFRESH_INTERVAL)*100}%`; if(countdown<=0) fetchRouteStatus(); },1000); });
+</script>
+
+</body>
+</html>

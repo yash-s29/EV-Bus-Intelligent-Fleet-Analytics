@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trip Prediction | EV Fleet AI</title>
+
+  <link rel="stylesheet" href="../css/style.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  <script src="../js/sidebar.js" defer></script>
+  <script src="../js/prediction.js" defer></script>
+
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --text-main: #f1f5f9;
+      --text-dim: #94a3b8;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    input, select {
+      background: var(--bg-dark);
+      border: 1px solid #334155;
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    input:focus, select:focus { 
+        border-color: var(--accent-blue); 
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .state-box {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      text-align: center;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .state-loading { background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); }
+    .state-error { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); }
+    .state-success { background: rgba(16, 185, 129, 0.1); color: var(--accent-green); }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .kpi-card {
+      border-top: 4px solid var(--accent-blue);
+      text-align: center;
+      padding: 20px;
+      transition: transform 0.2s ease;
+    }
+    .kpi-card:hover { transform: translateY(-5px); }
+
+    .metric-value {
+      font-size: 2rem;
+      font-weight: 800;
+      margin: 10px 0;
+      color: var(--text-main);
+    }
+
+    .chart-wrapper { 
+        position: relative;
+        height: 350px; 
+        width: 100%;
+        margin-top: 20px; 
+    }
+    
+    .hidden { display: none; }
+
+    /* Pulse Effect for AI Processing */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    .processing { animation: pulse 1.5s infinite; }
+  </style>
+</head>
+
+<body class="app prediction">
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2 class="logo">EV FLEET <span style="color:var(--accent-blue)">AI</span></h2>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="index.html" class="nav-link">Dashboard</a>
+        <a href="logs.html" class="nav-link">Fleet Logs</a>
+        <a href="route.html" class="nav-link">Route Monitor</a>
+        <a href="prediction.html" class="nav-link active">Trip Prediction</a>
+      </nav>
+    </aside>
+
+    <div class="app-main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Trip Forecast Engine</h1>
+          <p class="page-subtitle">AI-simulated battery usage based on load and environmental factors</p>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="card">
+          <header class="card-header">
+            <h3 class="metric-label">Route Configuration</h3>
+          </header>
+
+          <div class="form-grid">
+            <input type="text" id="routeId" placeholder="Route ID (e.g. R-101)" value="R-101" />
+            <input type="number" id="passengers" min="0" max="100" placeholder="Passenger Load (%)" />
+            <select id="weather">
+              <option value="" disabled selected>Select Weather</option>
+              <option value="normal">Sunny / Normal</option>
+              <option value="hot">Extreme Heat</option>
+              <option value="cold">Extreme Cold</option>
+            </select>
+            <button id="predictBtn" class="btn btn-primary">Predict Trip</button>
+          </div>
+
+          <div id="predictionMessage" class="state-box hidden"></div>
+        </section>
+
+        <section class="kpi-grid">
+          <article class="card kpi-card">
+            <span class="metric-label">Predicted End SoC</span>
+            <p id="endSoc" class="metric-value">--%</p>
+          </article>
+
+          <article class="card kpi-card" id="riskCard">
+            <span class="metric-label">Route Risk Level</span>
+            <p id="risk" class="metric-value">--</p>
+          </article>
+
+          <article class="card kpi-card">
+            <span class="metric-label">Recommended Speed</span>
+            <p id="speed" class="metric-value">-- km/h</p>
+          </article>
+        </section>
+
+        <section class="card">
+          <header class="card-header">
+            <h3 class="metric-label">Predicted Battery Discharge Curve</h3>
+          </header>
+          <div class="chart-wrapper">
+            <canvas id="tripChart"></canvas>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+</body>
+</html>
